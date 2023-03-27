@@ -29,4 +29,11 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-double get_ent(unsigned char *start, unsigned char *end);
+typedef struct ent_ctx
+{
+    unsigned counts[256];
+    unsigned long length;
+} ent_ctx;
+
+unsigned long ent_add(ent_ctx *ctx, unsigned char *start, unsigned char *end);
+double ent_get(ent_ctx *ctx);

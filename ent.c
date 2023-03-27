@@ -32,23 +32,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <math.h>
 #include "ent.h"
 
-double
-get_ent(unsigned char *start, unsigned char *end)
+unsigned long
+ent_add(ent_ctx *ctx, unsigned char *start, unsigned char *end)
 {
-    const double d = 256.0;
-    const double len = end - start;
-    unsigned counts[256] = {0};
-    double ent = 0.0, p = 0.0;
+    const unsigned len = end - start;
 
     if (len < 1)
-        return 0;
+        return ctx->length;
 
     while (start < end)
-        counts[*start++]++;
+        ctx->counts[*start++]++;
 
-    for(unsigned c=d; c--;)
+    return ctx->length+=len;
+}
+
+double
+ent_get(ent_ctx *ctx)
+{
+    double ent = 0.0, p = 0.0;
+
+    if (ctx->length < 1)
+        return 0;
+
+    for(unsigned c=256; c--;)
     {
-        if ((p = counts[c]/len)<=0.0)
+        if ((p = ctx->counts[c]/(double)ctx->length)<=0.0)
             continue;
         ent += p*log2(1.0/p);
     }

@@ -40,35 +40,46 @@ usage()
 {
     fprintf(stderr,
         "USAGE\n"
-        "\tcent [file|-h|--help]\n\n"
-        "\tIf parameter `file` is missing, it will use stdin (if present), "
-            "or just use /dev/urandom.\n\n"
+        "\tcent [-w|--whole] [-h|--help] [file]\n\n"
+        "\tfile        If parameter is missing, it will use stdin (if present) "
+            "or just use /dev/urandom.\n"
+        "\t-w|--whole  Read the whole file. If not set, just reads up to 4096 "
+            "bytes.\n"
+        "\t-h|--help   This screen.\n\n"
         "EXAMPLES\n"
         "\thead -c 255 /dev/urandom | cent\n"
-        "\topenssl enc --aes-128-cbc -pbkdf2 -k test </etc/passwd | "
-            "head -c 255 | cent\n"
-        "\tperl -e 'for(0..255){print chr($_)}' | cent\n"
+        "\topenssl enc --aes-128-cbc -pbkdf2 -k test </etc/passwd | cent -w\n"
+        "\tperl -e 'for(0..255){print chr}' | cent\n"
         "\tcent /etc/group\n");
 }
 
 int main(int argc, char **argv)
 {
     unsigned char buf[4096] = {0};
-    unsigned char *start = buf;
     struct stat st_info;
-    size_t lr = 0;
+    size_t blen = 0, elen = 0;
     FILE *in = NULL;
+    int whole = 0;
+    char *file = NULL;
+    ent_ctx ctx = {{0},0};
 
     if (fstat(0, &st_info))
         perror("fstat"), _exit(1);
 
-    if (argc > 1)
+    while (--argc)
     {
-        if (!strcmp("-h", argv[1]) || !strcmp("--help", argv[1]))
+        if (!strcmp("-h", argv[argc]) || !strcmp("--help", argv[argc]))
             usage(), _exit(1);
+        else if (!strcmp("-w", argv[argc]) || !strcmp("--whole", argv[argc]))
+            whole = 1;
+        else
+            file = argv[argc];
+    }
 
-        fprintf(stderr, "reading: %s\n", argv[1]);
-        if (!(in = freopen(argv[1], "r", stdin)))
+    if (file)
+    {
+        fprintf(stderr, "reading: %s\n", file);
+        if (!(in = freopen(file, "r", stdin)))
             perror("freopen"), _exit(2);
     }
     else if (S_ISFIFO(st_info.st_mode) || !isatty(0))
@@ -83,9 +94,14 @@ int main(int argc, char **argv)
             perror("freopen"), _exit(3);
     }
 
-    lr = fread(buf, 1, sizeof buf, in);
+    do
+    {
+        blen = fread(buf, 1, sizeof buf, in);
+        elen = ent_add(&ctx, buf, buf+blen);
+    }
+    while (whole && blen);
 
-    printf("Entropy: %g, over: %zu bytes\n", get_ent(start, start+lr), lr);
+    printf("Entropy: %g, over: %lu bytes\n", ent_get(&ctx), elen);
 
     return 0;
 }
